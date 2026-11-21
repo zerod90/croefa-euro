@@ -1,0 +1,8 @@
+# tajne - nikad na GitHub
+config.json
+token.json
+# lokalno
+cache_demo/
+update.log
+__pycache__/
+*.pyc

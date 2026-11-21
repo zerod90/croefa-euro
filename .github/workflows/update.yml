@@ -1,0 +1,49 @@
+name: Jutarnje ažuriranje
+
+on:
+  schedule:
+    - cron: "0 7 * * *"   # 07:00 UTC = 08:00 po hrvatskom zimskom vremenu
+  workflow_dispatch:       # ručno pokretanje s GitHuba
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
+      YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+      YAHOO_REFRESH_TOKEN: ${{ secrets.YAHOO_REFRESH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ima li Yahoo pristupa?
+        id: check
+        run: |
+          if [ -z "$YAHOO_REFRESH_TOKEN" ]; then
+            echo "Yahoo tajne još nisu postavljene - preskačem."
+            echo "go=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=yes" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-python@v5
+        if: steps.check.outputs.go == 'yes'
+        with:
+          python-version: "3.12"
+      - name: Dohvat s Yahooa
+        if: steps.check.outputs.go == 'yes'
+        run: |
+          pip install openpyxl
+          python fetch.py update
+      - name: Spremi promjene
+        if: steps.check.outputs.go == 'yes'
+        run: |
+          git config user.name "croefa-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data.js cache
+          git diff --cached --quiet || git commit -m "Ažuriranje $(date -u +%F)"
+          git push
