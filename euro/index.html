@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="hr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Euro kupovi · CROEFA</title>
+    <link rel="icon" href="../logo.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../style.css">
+  </head>
+
+  <body>
+    <!-- veliki blijedi logo u pozadini -->
+    <img class="bgmark" src="../logo.svg" alt="">
+
+    <header>
+      <div class="wrap">
+        <div class="top">
+          <a href="../" class="home-link">
+            <img class="brand" src="../logo.svg" alt="CROEFA">
+          </a>
+          <h1>
+            <span class="w1">CROEFA</span>
+            <span class="w2">Euro kupovi 26/27</span>
+          </h1>
+          <div class="upd" id="upd"></div>
+        </div>
+
+        <!-- dijelovi portala -->
+        <nav class="portal">
+          <a href="../">Početna</a>
+          <a href="../euro/" class="on">Euro kupovi</a>
+          <a href="../zscore/">Z-score SJB</a>
+        </nav>
+
+        <!-- gumbi Liga prvaka / Europa liga / Konferencijska liga -->
+        <div class="comps" id="comps"></div>
+
+        <!-- izbornik prikaza (vidljiv samo na desktopu) -->
+        <nav class="views topviews" id="topviews"></nav>
+      </div>
+    </header>
+
+    <!-- ovdje se iscrtava odabrani prikaz -->
+    <main class="wrap" id="main"></main>
+
+    <!-- donja navigacija (vidljiva samo na mobitelu) -->
+    <nav class="bottomnav" id="bottomnav"></nav>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

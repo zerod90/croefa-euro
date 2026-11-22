@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="hr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Z-score SJB · CROEFA</title>
+    <link rel="icon" href="../logo.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="zscore.css">
+  </head>
+
+  <body>
+    <img class="bgmark" src="../logo.svg" alt="">
+
+    <header>
+      <div class="wrap">
+        <div class="top">
+          <a href="../" class="home-link">
+            <img class="brand" src="../logo.svg" alt="CROEFA">
+          </a>
+          <h1>
+            <span class="w1">CROEFA</span>
+            <span class="w2">Z-score · Sjeverno-južni bataljun</span>
+          </h1>
+          <div class="upd" id="upd"></div>
+        </div>
+
+        <nav class="portal">
+          <a href="../">Početna</a>
+          <a href="../euro/">Euro kupovi</a>
+          <a href="../zscore/" class="on">Z-score SJB</a>
+        </nav>
+
+        <!-- izbornik prikaza (desktop) -->
+        <nav class="views topviews" id="topviews"></nav>
+      </div>
+    </header>
+
+    <main class="wrap" id="main"></main>
+
+    <!-- donja navigacija (mobitel) -->
+    <nav class="bottomnav" id="bottomnav"></nav>
+
+    <script src="data.js"></script>
+    <script src="zscore-calc.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

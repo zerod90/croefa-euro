@@ -3,13 +3,12 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>CROEFA Euro kupovi</title>
+    <title>CROEFA portal</title>
     <link rel="icon" href="logo.svg" type="image/svg+xml">
     <link rel="stylesheet" href="style.css">
   </head>
 
   <body>
-    <!-- veliki blijedi logo u pozadini -->
     <img class="bgmark" src="logo.svg" alt="">
 
     <header>
@@ -18,26 +17,60 @@
           <img class="brand" src="logo.svg" alt="CROEFA">
           <h1>
             <span class="w1">CROEFA</span>
-            <span class="w2">Euro kupovi 26/27</span>
+            <span class="w2">portal 26/27</span>
           </h1>
-          <div class="upd" id="upd"></div>
         </div>
 
-        <!-- gumbi Liga prvaka / Europa liga / Konferencijska liga -->
-        <div class="comps" id="comps"></div>
-
-        <!-- izbornik prikaza (vidljiv samo na desktopu) -->
-        <nav class="views topviews" id="topviews"></nav>
+        <nav class="portal">
+          <a href="./" class="on">Početna</a>
+          <a href="euro/">Euro kupovi</a>
+          <a href="zscore/">Z-score SJB</a>
+        </nav>
       </div>
     </header>
 
-    <!-- ovdje se iscrtava odabrani prikaz -->
-    <main class="wrap" id="main"></main>
+    <main class="wrap">
+      <p class="home-intro">
+        Rezultati i statistika CROEFA fantasy košarkaških liga
+        (Sjeverno-južni bataljun i Plavo-bijela liga).
+      </p>
 
-    <!-- donja navigacija (vidljiva samo na mobitelu) -->
-    <nav class="bottomnav" id="bottomnav"></nav>
+      <div class="home-grid">
+        <a class="home-card" href="euro/">
+          <h2>🏆 Euro kupovi</h2>
+          <p>Liga prvaka, Europa liga i Konferencijska liga — matchupi, tablice, raspored i koeficijenti.</p>
+          <div class="tags">
+            <span class="pill comp-tag" style="background: var(--LP)">Liga prvaka</span>
+            <span class="pill comp-tag" style="background: var(--EL)">Europa liga</span>
+            <span class="pill comp-tag" style="background: var(--KL)">Konferencijska liga</span>
+          </div>
+          <span class="go">Otvori →</span>
+        </a>
 
-    <script src="data.js"></script>
-    <script src="app.js"></script>
+        <a class="home-card" href="zscore/">
+          <h2>📊 Z-score — Sjeverno-južni bataljun</h2>
+          <p>Tjedna snaga momčadi neovisno o protivniku: Z-score po kategorijama, poredak, all-play i sreća.</p>
+          <div class="preview" id="zPreview"></div>
+          <span class="go">Otvori →</span>
+        </a>
+      </div>
+    </main>
+
+    <script src="zscore/data.js"></script>
+    <script src="zscore/zscore-calc.js"></script>
+    <script>
+      // pregled: top 3 iz zadnjeg tjedna Z-scorea
+      (function () {
+        const box = document.getElementById("zPreview");
+        const week = window.ZDATA && ZDATA.weeks[ZDATA.weeks.length - 1];
+        if (!week) return;
+
+        const top = ZScore.computeWeek(week).teams.slice(0, 3);
+        const items = top
+          .map((t) => `<li><b>${ZScore.esc(t.team)}</b> — ${ZScore.formatZ(t.zTotal)}</li>`)
+          .join("");
+        box.innerHTML = `Zadnji tjedan (${week.week}.):<ol>${items}</ol>`;
+      })();
+    </script>
   </body>
 </html>

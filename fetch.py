@@ -41,7 +41,7 @@ SCHEDULE_DIR = os.path.join(HERE, "raspored") if os.path.isdir(os.path.join(HERE
 CONFIG = os.path.join(HERE, "config.json")
 TOKEN = os.path.join(HERE, "token.json")
 CACHE = os.path.join(HERE, "cache")
-OUT = os.path.join(HERE, "data.js")
+OUT = os.path.join(HERE, "euro", "data.js")
 
 API = "https://fantasysports.yahooapis.com/fantasy/v2/"
 AUTH_URL = "https://api.login.yahoo.com/oauth2/request_auth"

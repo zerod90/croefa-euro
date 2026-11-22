@@ -1,0 +1,231 @@
+/* =====================================================================
+   Z-score — dodatni izgled (osnova je u ../style.css)
+   ===================================================================== */
+
+:root {
+  --c: #3b82f6; /* boja naglaska za Z-score */
+}
+
+.section {
+  margin-bottom: 16px;
+}
+
+.section h3 small {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ---------- Toplinska karta (crveno = loše, zeleno = dobro) ---------- */
+td.heat {
+  color: #111;
+  font-weight: 700;
+}
+
+td.heat.total {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+/* ---------- Sortiranje klikom na zaglavlje stupca ---------- */
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+th.sortable:hover {
+  color: var(--text);
+}
+
+th.sorted::after {
+  content: " ▼";
+  font-size: 9px;
+}
+
+th.sorted.asc::after {
+  content: " ▲";
+}
+
+tr.clickable {
+  cursor: pointer;
+}
+
+tr.clickable:hover td {
+  background: var(--panel2);
+}
+
+/* ---------- Oznake rezultata ---------- */
+.res {
+  display: inline-block;
+  min-width: 22px;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  color: #111;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.res.W {
+  background: var(--good);
+}
+
+.res.L {
+  background: var(--bad);
+}
+
+.res.T {
+  background: var(--EL);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.pos {
+  color: var(--good);
+}
+
+.neg {
+  color: var(--bad);
+}
+
+/* ---------- Stupčasti graf Z-scorea ---------- */
+.bars {
+  padding: 10px 14px 14px;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 190px) 1fr 58px;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 0;
+  font-size: 13px;
+}
+
+.bar-row .name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bar-track {
+  position: relative;
+  height: 16px;
+}
+
+/* okomita crta na nuli */
+.bar-track::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: var(--line);
+}
+
+.bar-fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.bar-row .val {
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Detalj momčadi ---------- */
+.team-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.team-head h2 {
+  flex: 1;
+  min-width: 180px;
+  margin: 0;
+  font-size: 20px;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 600px) {
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.kpi {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.kpi .lab {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.kpi .num {
+  margin-top: 2px;
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi .sub {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---------- Objašnjenje ---------- */
+.explain {
+  padding: 4px 18px 16px;
+  line-height: 1.6;
+}
+
+.explain h4 {
+  margin: 16px 0 4px;
+}
+
+.explain code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--panel2);
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.legend .scale {
+  width: 160px;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, hsl(0 70% 62%), hsl(55 80% 62%), hsl(120 55% 52%));
+}

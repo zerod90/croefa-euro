@@ -43,10 +43,19 @@ Aplikacija = `index.html` + `data.js`. Otvori `index.html` u pregledniku (radi i
 Zakaži ga u Task Scheduleru npr. u 08:00. Log ide u `update.log`.
 
 ## Datoteke
-- `index.html` — struktura stranice.
-- `style.css` — izgled (boje, raspored, prilagodba za mobitel).
-- `app.js` — logika: računanje rezultata, tablica, koeficijenata i iscrtavanje prikaza.
-- `fetch.py` — dohvat podataka s Yahooa i izgradnja `data.js`.
+Portal ima početnu stranicu i dva dijela:
+- `index.html` — početna stranica portala.
+- `style.css` — zajednički izgled svih stranica (boje, zaglavlje, tablice, mobitel).
+- `euro/` — Euro kupovi: `index.html`, `app.js` (logika), `data.js` (podaci iz `fetch.py`).
+- `zscore/` — Z-score Sjeverno-južnog bataljuna:
+  - `data.js` — tjedni zbrojevi momčadi iz Yahoo matchupa (zasad ručno prepisani),
+  - `zscore-calc.js` — izračun (z-vrijednosti, all-play, sreća, sezona),
+  - `app.js` i `zscore.css` — prikaz.
+- `fetch.py` — dohvat podataka s Yahooa i izgradnja `euro/data.js`.
+
+### Dodavanje novog tjedna u Z-score
+U `zscore/data.js` dodaj novi blok u `weeks` (isti oblik kao 4. tjedan):
+po jedan red za svaku momčad, brojevi redom FGM, FGA, FTM, FTA, 3PTM, PTS, REB, AST, ST, BLK, TO.
 - `logo.svg`, `img/court.svg` — logo i pozadinske linije terena.
 - `raspored/` — Excel rasporedi Euro natjecanja.
 - Python kod se formatira s `python -m black .` (postavke u `pyproject.toml`).
