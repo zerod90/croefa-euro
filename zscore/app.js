@@ -89,14 +89,39 @@ function formatSigned(value, decimals = 2) {
   return `<span class="muted">${text}</span>`;
 }
 
+/** Omjer pobjeda-poraza(-neriješenih), npr. "5-4" ili "4-2-1". */
 function recordText(r) {
-  return `${r.wins}-${r.losses}${r.ties ? "-" + r.ties : ""}`;
+  return r.ties ? `${r.wins}-${r.losses}-${r.ties}` : `${r.wins}-${r.losses}`;
 }
 
+/** Oznaka W / L / T s rezultatom, npr. [W] 5-4. */
 function resultBadge(result) {
-  const letter = result.wins > result.losses ? "W" : result.wins < result.losses ? "L" : "T";
-  return `<span class="res ${letter}">${letter}</span>${result.wins}-${result.losses}${result.ties ? "-" + result.ties : ""}`;
+  let letter = "T";
+  if (result.wins > result.losses) letter = "W";
+  if (result.wins < result.losses) letter = "L";
+  return `<span class="res ${letter}">${letter}</span>${recordText(result)}`;
 }
+
+/** Atribut "selected" za odabranu opciju u padajućem izborniku. */
+function selectedIf(condition) {
+  return condition ? "selected" : "";
+}
+
+/** Obojeni stupac grafa oko nule; maxAbs = vrijednost koja ispuni pola širine. */
+function barFill(z, maxAbs, colorLimit) {
+  const width = Math.min(Math.abs(z) / maxAbs, 1) * 50; // % širine
+  const left = z >= 0 ? 50 : 50 - width;
+  const color = heatColor(z, colorLimit);
+  return `<span class="bar-fill" style="left: ${left}%; width: ${width}%; background: ${color}"></span>`;
+}
+
+/** Legenda boja: od crvene (lošije) do zelene (bolje). */
+const COLOR_LEGEND = `
+  <span class="legend">
+    <span>lošije</span>
+    <span class="scale"></span>
+    <span>bolje od prosjeka</span>
+  </span>`;
 
 function categoryText(cat, value) {
   return cat.made ? formatPct(value) : value;
@@ -114,34 +139,58 @@ function currentWeek() {
   return WEEKS.find((w) => w.week === state.week);
 }
 
-/** Zaglavlje stupca koje se može sortirati klikom. */
-function sortHeader(key, label, extraClass = "") {
-  const active = state.sort.key === key;
-  const cls = ["sortable", extraClass, active ? "sorted" : "", active && state.sort.asc ? "asc" : ""].join(" ");
-  return `<th class="${cls}" data-sort="${key}">${label}</th>`;
+/* ---------- Sortiranje tablica ---------- */
+
+/** Vrijednost po kojoj se sortira za svaki stupac (ostali stupci su kategorije). */
+const SORT_VALUES = {
+  rank: (t) => t.rank,
+  team: (t) => t.team,
+  zTotal: (t) => t.zTotal,
+  result: (t) => t.result.wins - t.result.losses,
+  allPlay: (t) => t.allPlay.pct,
+  luck: (t) => t.luck,
+};
+
+/**
+ * Stupci koji se pri prvom kliku sortiraju uzlazno (1, 2, 3… / A–Ž).
+ * Ostali se sortiraju silazno, tako da je najbolji gore.
+ */
+const ASCENDING_FIRST = ["rank", "team"];
+
+function sortValue(team, key) {
+  const getter = SORT_VALUES[key];
+  return getter ? getter(team) : team.z[key];
 }
 
-/** Sortira momčadi prema odabranom stupcu. */
+/** Sortira momčadi prema odabranom stupcu i smjeru iz state.sort. */
 function sortTeams(teams) {
   const { key, asc } = state.sort;
-  const value = (t) => {
-    if (key === "rank") return t.rank;
-    if (key === "team") return t.team;
-    if (key === "allPlay") return t.allPlay.pct;
-    if (key === "luck") return t.luck;
-    if (key === "result") return t.result.wins - t.result.losses;
-    if (key === "zTotal") return t.zTotal;
-    return t.z[key]; // kategorija
-  };
 
   return [...teams].sort((a, b) => {
-    const va = value(a);
-    const vb = value(b);
+    const va = sortValue(a, key);
+    const vb = sortValue(b, key);
     const cmp = typeof va === "string" ? va.localeCompare(vb) : va - vb;
-    // za brojeve je "silazno" prirodni smjer (najbolji gore), osim za poredak i ime
-    const naturalAsc = key === "rank" || key === "team";
-    return (naturalAsc ? cmp : -cmp) * (asc === naturalAsc ? 1 : -1);
+    return asc ? cmp : -cmp;
   });
+}
+
+/** Klik na isti stupac mijenja smjer; klik na novi stupac kreće od prirodnog smjera. */
+function toggleSort(key) {
+  if (state.sort.key === key) {
+    state.sort.asc = !state.sort.asc;
+  } else {
+    state.sort = { key, asc: ASCENDING_FIRST.includes(key) };
+  }
+}
+
+/** Zaglavlje stupca koje se može sortirati klikom. */
+function sortHeader(key, label, extraClass = "") {
+  const classes = ["sortable", extraClass];
+  if (state.sort.key === key) {
+    classes.push("sorted");
+    if (state.sort.asc) classes.push("asc");
+  }
+  return `<th class="${classes.join(" ")}" data-sort="${key}">${label}</th>`;
 }
 
 /* =====================================================================
@@ -149,9 +198,10 @@ function sortTeams(teams) {
    ===================================================================== */
 
 function renderChrome() {
-  document.getElementById("topviews").innerHTML = VIEWS.map(
-    (v) => `<button class="view ${v.id === state.view ? "on" : ""}" data-view="${v.id}">${v.name}</button>`,
-  ).join("");
+  document.getElementById("topviews").innerHTML = VIEWS.map((v) => {
+    const on = v.id === state.view ? "on" : "";
+    return `<button class="view ${on}" data-view="${v.id}">${v.name}</button>`;
+  }).join("");
 
   document.getElementById("bottomnav").innerHTML = VIEWS.map(
     (v) => `
@@ -166,16 +216,16 @@ function renderChrome() {
 
 function controlsBar({ weekSelect = true, showToggle = false } = {}) {
   const weekOptions = WEEKS.map(
-    (w) => `<option value="${w.week}" ${w.week === state.week ? "selected" : ""}>${weekLabel(w)}</option>`,
+    (w) => `<option value="${w.week}" ${selectedIf(w.week === state.week)}>${weekLabel(w)}</option>`,
   ).join("");
 
   const pctOptions = `
-    <option value="impact" ${state.pctMode === "impact" ? "selected" : ""}>Postoci: ponderirano</option>
-    <option value="simple" ${state.pctMode === "simple" ? "selected" : ""}>Postoci: jednostavno</option>`;
+    <option value="impact" ${selectedIf(state.pctMode === "impact")}>Postoci: ponderirano</option>
+    <option value="simple" ${selectedIf(state.pctMode === "simple")}>Postoci: jednostavno</option>`;
 
   const showOptions = `
-    <option value="z" ${state.show === "z" ? "selected" : ""}>Prikaz: z-vrijednosti</option>
-    <option value="stat" ${state.show === "stat" ? "selected" : ""}>Prikaz: statistika</option>`;
+    <option value="z" ${selectedIf(state.show === "z")}>Prikaz: z-vrijednosti</option>
+    <option value="stat" ${selectedIf(state.show === "stat")}>Prikaz: statistika</option>`;
 
   return `
     <div class="bar">
@@ -242,7 +292,8 @@ function rankingTable(data) {
       <div class="note">
         Z-score = prosjek z-vrijednosti 9 kategorija (0 = prosjek lige).
         All-play = rezultat da je momčad taj tjedan igrala protiv svih ostalih.
-        Sreća = stvarni ishod − all-play postotak. Klik na momčad otvara detalje, klik na stupac sortira.
+        Sreća = stvarni ishod − all-play postotak.
+        Klik na momčad otvara detalje, klik na stupac sortira.
       </div>
     </div>`;
 }
@@ -268,10 +319,11 @@ function heatmapTable(data) {
     .join("");
 
   const catHeaders = CATEGORIES.map((c) => sortHeader(c.key, c.key)).join("");
+  const subtitle = showStats ? "statistika, boja = z-vrijednost" : "z-vrijednosti";
 
   return `
     <div class="box section">
-      <h3>Po kategorijama <small>${showStats ? "statistika, boja = z-vrijednost" : "z-vrijednosti"}</small></h3>
+      <h3>Po kategorijama <small>${subtitle}</small></h3>
       <div class="scroll">
         <table>
           <thead>
@@ -285,7 +337,7 @@ function heatmapTable(data) {
         </table>
       </div>
       <div class="note">
-        <span class="legend"><span>lošije</span><span class="scale"></span><span>bolje od prosjeka</span></span>
+        ${COLOR_LEGEND}
         Kod TO je obrnuto: manje izgubljenih lopti = pozitivan z.
       </div>
     </div>`;
@@ -296,18 +348,14 @@ function barChart(data) {
   const maxAbs = Math.max(...data.teams.map((t) => Math.abs(t.zTotal)), 0.5);
 
   const rows = data.teams
-    .map((t) => {
-      const width = (Math.abs(t.zTotal) / maxAbs) * 50; // % širine (pola grafa)
-      const left = t.zTotal >= 0 ? 50 : 50 - width;
-      return `
+    .map(
+      (t) => `
         <div class="bar-row clickable" data-team="${esc(t.team)}">
           <span class="name">${t.rank}. ${esc(t.team)}</span>
-          <span class="bar-track">
-            <span class="bar-fill" style="left: ${left}%; width: ${width}%; background: ${heatColor(t.zTotal, 1.2)}"></span>
-          </span>
+          <span class="bar-track">${barFill(t.zTotal, maxAbs, 1.2)}</span>
           <span class="val">${formatZ(t.zTotal)}</span>
-        </div>`;
-    })
+        </div>`,
+    )
     .join("");
 
   return `
@@ -323,6 +371,7 @@ function barChart(data) {
 
 function viewTeam(data, team) {
   const n = data.teams.length;
+  const ap = team.allPlay;
 
   const kpis = `
     <div class="kpis">
@@ -338,8 +387,8 @@ function viewTeam(data, team) {
       </div>
       <div class="kpi">
         <div class="lab">All-play</div>
-        <div class="num">${recordText(team.allPlay)}</div>
-        <div class="sub">kategorije ${team.allPlay.catWins}-${team.allPlay.catLosses}-${team.allPlay.catTies}</div>
+        <div class="num">${recordText(ap)}</div>
+        <div class="sub">kategorije ${ap.catWins}-${ap.catLosses}-${ap.catTies}</div>
       </div>
       <div class="kpi">
         <div class="lab">Sreća</div>
@@ -350,36 +399,39 @@ function viewTeam(data, team) {
 
   const catRows = CATEGORIES.map((cat) => {
     const z = team.z[cat.key];
-    const width = Math.min(Math.abs(z) / 2.5, 1) * 50;
-    const left = z >= 0 ? 50 : 50 - width;
     return `
       <tr>
         <td class="l"><b>${cat.key}</b></td>
         <td>${categoryText(cat, team.values[cat.key])}</td>
         ${heatCell(z, formatZ(z, 2), 2)}
         <td>${team.catRank[cat.key]}.</td>
-        <td class="l" style="min-width: 140px">
-          <span class="bar-track" style="display: block">
-            <span class="bar-fill" style="left: ${left}%; width: ${width}%; background: ${heatColor(z)}"></span>
-          </span>
+        <td class="l bar-cell">
+          <span class="bar-track">${barFill(z, 2.5, 2)}</span>
         </td>
       </tr>`;
   }).join("");
 
-  const vsRows = team.allPlay.vs
-    .sort((a, b) => b.outcome - a.outcome || b.wins - b.losses - (a.wins - a.losses))
-    .map(
-      (v) => `
-        <tr class="${v.team === team.opponent ? "tot" : ""}">
-          <td class="l">${esc(v.team)}${v.team === team.opponent ? " <span class=\"muted\">(stvarni protivnik)</span>" : ""}</td>
+  // protiv svakoga: prvo pobjede, zatim po razlici kategorija
+  const catDiff = (v) => v.wins - v.losses;
+  const vsList = [...ap.vs].sort((a, b) => b.outcome - a.outcome || catDiff(b) - catDiff(a));
+
+  const vsRows = vsList
+    .map((v) => {
+      const isOpponent = v.team === team.opponent;
+      const label = isOpponent ? `<span class="muted">(stvarni protivnik)</span>` : "";
+      return `
+        <tr class="${isOpponent ? "tot" : ""}">
+          <td class="l">${esc(v.team)} ${label}</td>
           <td>${resultBadge(v)}</td>
-        </tr>`,
-    )
+        </tr>`;
+    })
     .join("");
+
+  const backLabel = `‹ Svi · ${esc(weekLabel(data.week))}`;
 
   return `
     ${controlsBar()}
-    <div class="bar"><button class="back" data-back>‹ Svi · ${esc(weekLabel(data.week))}</button></div>
+    <div class="bar"><button class="back" data-back>${backLabel}</button></div>
     <div class="team-head"><h2>${esc(team.team)}</h2>${team.rank}. mjesto po Z-scoreu</div>
     ${kpis}
     <div class="cols two">
@@ -388,7 +440,10 @@ function viewTeam(data, team) {
         <div class="scroll">
           <table>
             <thead>
-              <tr><th class="l">Kat.</th><th>Stat.</th><th>z</th><th>Mjesto</th><th class="l">ispod / iznad prosjeka</th></tr>
+              <tr>
+                <th class="l">Kat.</th><th>Stat.</th><th>z</th><th>Mjesto</th>
+                <th class="l">ispod / iznad prosjeka</th>
+              </tr>
             </thead>
             <tbody>${catRows}</tbody>
           </table>
@@ -434,11 +489,12 @@ function viewSeason() {
     .join("");
 
   const weekHeaders = weekNumbers.map((n) => `<th>T${n}</th>`).join("");
+  const weekCount = `${WEEKS.length} ${WEEKS.length === 1 ? "tjedan" : "tjedana"}`;
 
   return `
     ${controlsBar({ weekSelect: false })}
     <div class="box stand section">
-      <h3>Sezona — prosječni Z-score <small>${WEEKS.length} ${WEEKS.length === 1 ? "tjedan" : "tjedana"}</small></h3>
+      <h3>Sezona — prosječni Z-score <small>${weekCount}</small></h3>
       <div class="scroll">
         <table>
           <thead>
@@ -511,7 +567,7 @@ function viewExplain() {
         </p>
 
         <h4>Boje</h4>
-        <div class="legend"><span>lošije</span><span class="scale"></span><span>bolje od prosjeka</span></div>
+        ${COLOR_LEGEND}
 
         <h4>Izvor podataka</h4>
         <p>
@@ -541,8 +597,7 @@ document.addEventListener("click", (event) => {
   if (data.view) {
     navigate({ view: data.view, team: null });
   } else if (data.sort) {
-    const same = state.sort.key === data.sort;
-    state.sort = { key: data.sort, asc: same ? !state.sort.asc : data.sort === "rank" || data.sort === "team" };
+    toggleSort(data.sort);
     render();
   } else if (data.back != null) {
     navigate({ team: null });

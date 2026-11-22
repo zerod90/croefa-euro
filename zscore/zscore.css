@@ -135,6 +135,15 @@ tr.clickable:hover td {
   border-radius: 4px;
 }
 
+/* stupac s malim grafom u tablici kategorija */
+.bar-cell {
+  min-width: 140px;
+}
+
+.bar-cell .bar-track {
+  display: block;
+}
+
 .bar-row .val {
   font-weight: 700;
   text-align: right;

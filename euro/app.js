@@ -177,7 +177,8 @@ function teamLogo(name, big = false) {
   if (team.logo) {
     return `<span class="${cls}"><img src="${esc(team.logo)}" alt="" loading="lazy"></span>`;
   }
-  return `<span class="${cls}" style="--lc: hsl(${colorHue(name)} 45% 38%)">${esc(initials(name))}</span>`;
+  const color = `hsl(${colorHue(name)} 45% 38%)`;
+  return `<span class="${cls}" style="--lc: ${color}">${esc(initials(name))}</span>`;
 }
 
 /* =====================================================================
@@ -519,8 +520,12 @@ function viewMatchupDetail(round, game) {
 
   // prije početka kola računamo "prazan" rezultat (0:0 u svemu)
   const noData = "9999-01-01";
-  const selected = future ? scoreMatchup(teamA, teamB, noData, noData) : scoreMatchup(teamA, teamB, from, to);
-  const total = future ? selected : scoreMatchup(teamA, teamB, round.start, roundLastDay(round));
+  const selected = future
+    ? scoreMatchup(teamA, teamB, noData, noData)
+    : scoreMatchup(teamA, teamB, from, to);
+  const total = future
+    ? selected
+    : scoreMatchup(teamA, teamB, round.start, roundLastDay(round));
 
   const dayOptions = [
     `<option value="all">Ukupno kolo (${formatDate(round.start)}–${formatDate(round.end)})</option>`,
@@ -688,10 +693,13 @@ function playersTable(team, from, to) {
 
   if (singleDay) {
     // jedan dan: redoslijed kao u postavi (PG, SG, ... BN, IL)
-    players.sort((x, y) => SLOT_ORDER.indexOf(x.slot) - SLOT_ORDER.indexOf(y.slot) || x.order - y.order);
+    const slotIndex = (p) => SLOT_ORDER.indexOf(p.slot);
+    players.sort((x, y) => slotIndex(x) - slotIndex(y) || x.order - y.order);
   } else {
-    // više dana: prvo igrači koji su igrali u postavi, po poenima
-    players.sort((x, y) => (y.activeDays ? 1 : 0) - (x.activeDays ? 1 : 0) || y.active[STAT.PTS] - x.active[STAT.PTS]);
+    // više dana: prvo igrači koji su igrali u postavi, zatim po poenima
+    const played = (p) => (p.activeDays ? 1 : 0);
+    const points = (p) => p.active[STAT.PTS];
+    players.sort((x, y) => played(y) - played(x) || points(y) - points(x));
   }
 
   const total = emptyStats();

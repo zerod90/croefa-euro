@@ -58,19 +58,6 @@
 
     <script src="zscore/data.js"></script>
     <script src="zscore/zscore-calc.js"></script>
-    <script>
-      // pregled: top 3 iz zadnjeg tjedna Z-scorea
-      (function () {
-        const box = document.getElementById("zPreview");
-        const week = window.ZDATA && ZDATA.weeks[ZDATA.weeks.length - 1];
-        if (!week) return;
-
-        const top = ZScore.computeWeek(week).teams.slice(0, 3);
-        const items = top
-          .map((t) => `<li><b>${ZScore.esc(t.team)}</b> — ${ZScore.formatZ(t.zTotal)}</li>`)
-          .join("");
-        box.innerHTML = `Zadnji tjedan (${week.week}.):<ol>${items}</ol>`;
-      })();
-    </script>
+    <script src="home.js"></script>
   </body>
 </html>
