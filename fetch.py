@@ -14,6 +14,7 @@ Sve datoteke su u istom folderu kao skripta:
     cache/        - sirovi dnevni podaci (jedan JSON po danu)
     data.js       - podaci koje čita index.html
 """
+
 import base64
 import datetime as dt
 import difflib
@@ -55,8 +56,20 @@ COMPS = [
 # redoslijed brojčanih statistika u data.js
 STAT_KEYS = ["FGM", "FGA", "FTM", "FTA", "3PTM", "PTS", "REB", "AST", "ST", "BLK", "TO", "GP"]
 # Yahoo stat_id -> naš ključ (9004003 = FGM/A, 9007006 = FTM/A)
-SIMPLE_IDS = {"10": "3PTM", "12": "PTS", "15": "REB", "16": "AST", "17": "ST", "18": "BLK", "19": "TO",
-              "3": "FGA", "4": "FGM", "6": "FTA", "7": "FTM", "0": "GP"}
+SIMPLE_IDS = {
+    "10": "3PTM",
+    "12": "PTS",
+    "15": "REB",
+    "16": "AST",
+    "17": "ST",
+    "18": "BLK",
+    "19": "TO",
+    "3": "FGA",
+    "4": "FGM",
+    "6": "FTA",
+    "7": "FTM",
+    "0": "GP",
+}
 INACTIVE_SLOTS = {"BN", "IL", "IL+", "NA"}
 
 
@@ -99,8 +112,8 @@ def parse_schedule():
         ws = openpyxl.load_workbook(os.path.join(SCHEDULE_DIR, fname), data_only=True).worksheets[0]
         teams, rounds = [], []
         for row in ws.iter_rows(values_only=True):
-            a = (str(row[0]).strip() if row[0] else "")
-            c = (str(row[2]).strip() if len(row) > 2 and row[2] else "")
+            a = str(row[0]).strip() if row[0] else ""
+            c = str(row[2]).strip() if len(row) > 2 and row[2] else ""
             if not a:
                 continue
             m = rx.search(a)
@@ -108,20 +121,23 @@ def parse_schedule():
                 d1, m1, y1, d2, m2, y2 = m.groups()
                 y2 = int(y2)
                 y1 = int(y1) if y1 else (y2 - 1 if int(m1) > int(m2) else y2)
-                rounds.append({
-                    "n": len(rounds) + 1,
-                    "label": "Finale" if "finale" in a.lower() else f"{len(rounds) + 1}. kolo",
-                    "final": "finale" in a.lower(),
-                    "start": dt.date(y1, int(m1), int(d1)).isoformat(),
-                    "end": dt.date(y2, int(m2), int(d2)).isoformat(),
-                    "games": [],
-                })
+                rounds.append(
+                    {
+                        "n": len(rounds) + 1,
+                        "label": "Finale" if "finale" in a.lower() else f"{len(rounds) + 1}. kolo",
+                        "final": "finale" in a.lower(),
+                        "start": dt.date(y1, int(m1), int(d1)).isoformat(),
+                        "end": dt.date(y2, int(m2), int(d2)).isoformat(),
+                        "games": [],
+                    }
+                )
             elif c and rounds:
                 rounds[-1]["games"].append([a, c])
             elif not rounds:
                 teams.append(a)
-        comps.append({"id": cid, "name": name, "winPts": win_pts, "bonus": bonus,
-                      "teams": teams, "rounds": rounds})
+        comps.append(
+            {"id": cid, "name": name, "winPts": win_pts, "bonus": bonus, "teams": teams, "rounds": rounds}
+        )
     return comps
 
 
@@ -153,9 +169,11 @@ def redirect_uri():
 def token_request(data):
     c = cfg()
     basic = base64.b64encode(f"{c['client_id']}:{c['client_secret']}".encode()).decode()
-    req = urllib.request.Request(TOKEN_URL, data=urllib.parse.urlencode(data).encode(),
-                                 headers={"Authorization": "Basic " + basic,
-                                          "Content-Type": "application/x-www-form-urlencoded"})
+    req = urllib.request.Request(
+        TOKEN_URL,
+        data=urllib.parse.urlencode(data).encode(),
+        headers={"Authorization": "Basic " + basic, "Content-Type": "application/x-www-form-urlencoded"},
+    )
     with urllib.request.urlopen(req, timeout=30) as r:
         tok = json.load(r)
     tok["obtained"] = time.time()
@@ -169,10 +187,18 @@ def token_request(data):
 def cmd_auth(code=None):
     c = cfg()
     if not code:
-        q = urllib.parse.urlencode({"client_id": c["client_id"], "redirect_uri": redirect_uri(),
-                                    "response_type": "code", "language": "en-us"})
-        print("Otvori ovaj link, prijavi se i odobri pristup, pa pokreni:\n"
-              "  python fetch.py auth <KOD>\n\n" + AUTH_URL + "?" + q)
+        q = urllib.parse.urlencode(
+            {
+                "client_id": c["client_id"],
+                "redirect_uri": redirect_uri(),
+                "response_type": "code",
+                "language": "en-us",
+            }
+        )
+        print(
+            "Otvori ovaj link, prijavi se i odobri pristup, pa pokreni:\n"
+            "  python fetch.py auth <KOD>\n\n" + AUTH_URL + "?" + q
+        )
         return
     code = code.strip()
     if "code=" in code:  # zalijepljen cijeli URL nakon preusmjeravanja
@@ -189,8 +215,13 @@ def access_token():
     if not tok:
         sys.exit("Nema tokena. Pokreni: python fetch.py auth")
     if time.time() > tok["obtained"] + tok.get("expires_in", 3600) - 120:
-        tok = token_request({"grant_type": "refresh_token", "redirect_uri": redirect_uri(),
-                             "refresh_token": tok["refresh_token"]})
+        tok = token_request(
+            {
+                "grant_type": "refresh_token",
+                "redirect_uri": redirect_uri(),
+                "refresh_token": tok["refresh_token"],
+            }
+        )
     return tok["access_token"]
 
 
@@ -323,9 +354,15 @@ def fetch_day(day, team_keys):
             slot = txt(p, "selected_position/position")
             st = parse_stats(p.find("player_stats/stats"))
             if not st["GP"]:
-                st["GP"] = 1 if any(st[k] for k in ("FGA", "FTA", "PTS", "REB", "AST", "ST", "BLK", "TO")) else 0
-            result["players"][pid] = [txt(p, "name/full"), txt(p, "editorial_team_abbr").upper(),
-                                      txt(p, "display_position"), txt(p, "headshot/url")]
+                st["GP"] = (
+                    1 if any(st[k] for k in ("FGA", "FTA", "PTS", "REB", "AST", "ST", "BLK", "TO")) else 0
+                )
+            result["players"][pid] = [
+                txt(p, "name/full"),
+                txt(p, "editorial_team_abbr").upper(),
+                txt(p, "display_position"),
+                txt(p, "headshot/url"),
+            ]
             lineup.append([pid, slot] + [st[k] for k in STAT_KEYS])
             if slot not in INACTIVE_SLOTS:
                 for k in STAT_KEYS:
@@ -369,7 +406,9 @@ def cmd_update(refetch_days=3):
 def build(comps, mapping, yteams, demo):
     days, lineups, players = {}, {}, {}
     last = None
-    for path in sorted(glob.glob(os.path.join(CACHE if not demo else os.path.join(HERE, "cache_demo"), "*.json"))):
+    for path in sorted(
+        glob.glob(os.path.join(CACHE if not demo else os.path.join(HERE, "cache_demo"), "*.json"))
+    ):
         day = load_json(path)
         d = day["date"]
         last = d
@@ -383,7 +422,11 @@ def build(comps, mapping, yteams, demo):
     teams = {}
     for name, tk in mapping.items():
         y = yteams.get(tk, {})
-        teams[name] = {"league": y.get("league", ""), "logo": y.get("logo", ""), "manager": y.get("manager", "")}
+        teams[name] = {
+            "league": y.get("league", ""),
+            "logo": y.get("logo", ""),
+            "manager": y.get("manager", ""),
+        }
     data = {
         "generated": dt.datetime.now().strftime("%d.%m.%Y. %H:%M"),
         "demo": demo,
@@ -442,13 +485,17 @@ def cmd_demo():
         key = difflib.get_close_matches(norm(n), list(rp), n=1, cutoff=0.5)
         plist = rp[key[0]] if key else [(f"Igrač {j + 1}", "NBA", "F") for j in range(15)]
         r = []
-        for (pn, team, pos) in plist:
+        for pn, team, pos in plist:
             pid_seq += 1
             skill = random.uniform(0.6, 1.4)
             r.append((str(pid_seq), pn, team, pos, skill))
         rosters[n] = r
-        yteams[mapping[n]] = {"name": n, "league": "CROEFA Sjeverno-južni bataljun" if i % 2 else "Croefa Plavo-bijela liga",
-                              "logo": "", "manager": ""}
+        yteams[mapping[n]] = {
+            "name": n,
+            "league": "CROEFA Sjeverno-južni bataljun" if i % 2 else "Croefa Plavo-bijela liga",
+            "logo": "",
+            "manager": "",
+        }
     start, _ = season_range(comps)
     last = dt.date(2026, 11, 20)
     for day in daterange(start, last):
@@ -457,7 +504,9 @@ def cmd_demo():
             lineup, tot = [], [0] * len(STAT_KEYS)
             for idx, (pid, pn, team, pos, skill) in enumerate(r):
                 res["players"][pid] = [pn, team, pos, ""]
-                slot = ["PG", "SG", "G", "SF", "PF", "F", "C", "Util", "Util", "Util"][idx] if idx < 10 else "BN"
+                slot = (
+                    ["PG", "SG", "G", "SF", "PF", "F", "C", "Util", "Util", "Util"][idx] if idx < 10 else "BN"
+                )
                 plays = random.random() < 0.5
                 if plays:
                     fga = max(1, int(random.gauss(14, 4) * skill))
@@ -466,9 +515,20 @@ def cmd_demo():
                     ftm = int(fta * random.uniform(0.6, 0.95))
                     tpm = int(random.uniform(0, 4) * skill)
                     pts = fgm * 2 + tpm + ftm
-                    st = [fgm, fga, ftm, fta, tpm, pts, int(random.uniform(2, 11) * skill),
-                          int(random.uniform(0, 8) * skill), random.randint(0, 3), random.randint(0, 2),
-                          random.randint(0, 4), 1]
+                    st = [
+                        fgm,
+                        fga,
+                        ftm,
+                        fta,
+                        tpm,
+                        pts,
+                        int(random.uniform(2, 11) * skill),
+                        int(random.uniform(0, 8) * skill),
+                        random.randint(0, 3),
+                        random.randint(0, 2),
+                        random.randint(0, 4),
+                        1,
+                    ]
                 else:
                     st = [0] * len(STAT_KEYS)
                 lineup.append([pid, slot] + st)
@@ -493,4 +553,3 @@ if __name__ == "__main__":
         cmd_update()
     else:
         print(__doc__)
-

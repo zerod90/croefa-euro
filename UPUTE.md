@@ -43,6 +43,13 @@ Aplikacija = `index.html` + `data.js`. Otvori `index.html` u pregledniku (radi i
 Zakaži ga u Task Scheduleru npr. u 08:00. Log ide u `update.log`.
 
 ## Datoteke
+- `index.html` — struktura stranice.
+- `style.css` — izgled (boje, raspored, prilagodba za mobitel).
+- `app.js` — logika: računanje rezultata, tablica, koeficijenata i iscrtavanje prikaza.
+- `fetch.py` — dohvat podataka s Yahooa i izgradnja `data.js`.
+- `logo.svg`, `img/court.svg` — logo i pozadinske linije terena.
+- `raspored/` — Excel rasporedi Euro natjecanja.
+- Python kod se formatira s `python -m black .` (postavke u `pyproject.toml`).
 - `token.json` — tvoj Yahoo token, **ne dijeli ga** (kao ni `config.json` sa secretom).
 - `cache/` — sirovi dnevni podaci; slobodno obriši pa `update` sve ponovno povuče.
 - `python fetch.py demo` — izmišljeni podaci za testiranje izgleda.
