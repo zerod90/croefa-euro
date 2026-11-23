@@ -479,6 +479,55 @@ select {
   font-size: 22px;
 }
 
+/* ---------- Recap matchupa ---------- */
+.recap-line {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.recap-line b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.recap {
+  margin-bottom: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--c);
+  border-radius: var(--radius);
+  background: var(--panel);
+  line-height: 1.55;
+}
+
+.recap-label {
+  color: var(--c);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.recap-title {
+  margin: 4px 0 8px;
+  font-size: 19px;
+  line-height: 1.3;
+}
+
+.recap p {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.recap-note {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 /* ---------- Detalj matchupa ---------- */
 .mhead {
   display: grid;

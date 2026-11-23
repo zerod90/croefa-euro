@@ -253,15 +253,22 @@ function gameResult(round, game) {
   return scoreMatchup(game[0], game[1], round.start, roundLastDay(round));
 }
 
-/** Poredak natjecanja nakon završenih kola regularnog dijela. */
-function standings(comp) {
+/**
+ * Poredak natjecanja nakon završenih kola regularnog dijela.
+ * options.uptoRound   — računaj samo do tog kola (za recap "nakon 3. kola")
+ * options.includeLive — uračunaj i kolo u tijeku s trenutnim rezultatom (projekcija)
+ */
+function standings(comp, options = {}) {
+  const { uptoRound = Infinity, includeLive = false } = options;
   const rows = {};
   for (const team of comp.teams) {
     rows[team] = { team, played: 0, w: 0, l: 0, t: 0, catW: 0, catL: 0, catT: 0 };
   }
 
   for (const round of comp.rounds) {
-    if (round.final || roundStatus(round) !== "done") continue;
+    const status = roundStatus(round);
+    const counts = status === "done" || (includeLive && status === "live");
+    if (round.final || !counts || round.n > uptoRound) continue;
 
     for (const [teamA, teamB] of round.games) {
       const A = rows[teamA];
@@ -489,10 +496,15 @@ function matchupCard(round, game, index) {
       <span class="sc">${score}</span>
     </div>`;
 
+  // kratki naslov recapa ispod rezultata (samo kad je kolo počelo)
+  const recap = m ? buildRecap(currentComp(), round, game) : null;
+  const recapLine = recap ? `<div class="recap-line">${recap.headline}</div>` : "";
+
   return `
     <div class="card" data-match="${index}">
       ${row(teamA, m ? m.winsA : "–", m && m.winsA < m.winsB)}
       ${row(teamB, m ? m.winsB : "–", m && m.winsB < m.winsA)}
+      ${recapLine}
       <div class="foot">
         <span>${m && m.ties ? `neriješeno ${m.ties}` : "&nbsp;"}</span>
         ${statusPill(round)}
@@ -545,9 +557,27 @@ function viewMatchupDetail(round, game) {
       <select id="daySel" ${future ? "disabled" : ""}>${dayOptions}</select>
     </div>
     ${matchupHeader(round, teamA, teamB, total)}
+    ${recapBox(round, game)}
     <div class="dwrap">
       ${categoryTable(selected)}
       <div>${players}</div>
+    </div>`;
+}
+
+/** Okvir s automatskim recapom matchupa (cijelo kolo, neovisno o odabranom danu). */
+function recapBox(round, game) {
+  const recap = buildRecap(currentComp(), round, game);
+  if (!recap) return "";
+
+  const paragraphs = recap.paragraphs.map((p) => `<p>${p}</p>`).join("");
+  const label = roundStatus(round) === "future" ? "Najava" : "Recap";
+
+  return `
+    <div class="recap">
+      <div class="recap-label">${label}</div>
+      <h2 class="recap-title">${recap.headline}</h2>
+      ${paragraphs}
+      <div class="recap-note">Automatski sastavljeno iz statistike matchupa i tablice natjecanja.</div>
     </div>`;
 }
 

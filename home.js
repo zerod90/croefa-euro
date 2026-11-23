@@ -1,22 +1,30 @@
 /* =====================================================================
    Početna stranica portala — pregled top 3 iz zadnjeg tjedna Z-scorea
+   za svaku ligu koja ima podatke
    ===================================================================== */
 
 "use strict";
 
-function renderZScorePreview() {
-  const box = document.getElementById("zPreview");
-  const weeks = window.ZDATA ? window.ZDATA.weeks : [];
-  if (!box || !weeks.length) return;
+/** Top 3 jedne lige kao HTML, ili poruka da podataka još nema. */
+function leaguePreview(league) {
+  const title = `<b>${ZScore.esc(league.name)}</b>`;
+  if (!league.weeks.length) {
+    return `<div>${title}: <span class="small">još nema podataka</span></div>`;
+  }
 
-  const lastWeek = weeks[weeks.length - 1];
+  const lastWeek = league.weeks[league.weeks.length - 1];
   const top3 = ZScore.computeWeek(lastWeek).teams.slice(0, 3);
-
   const items = top3
-    .map((t) => `<li><b>${ZScore.esc(t.team)}</b> — ${ZScore.formatZ(t.zTotal)}</li>`)
+    .map((t) => `<li>${ZScore.esc(t.team)} — ${ZScore.formatZ(t.zTotal)}</li>`)
     .join("");
 
-  box.innerHTML = `Zadnji tjedan (${lastWeek.week}.):<ol>${items}</ol>`;
+  return `<div>${title} · ${lastWeek.week}. tjedan<ol>${items}</ol></div>`;
+}
+
+function renderZScorePreview() {
+  const box = document.getElementById("zPreview");
+  if (!box || !window.ZDATA) return;
+  box.innerHTML = window.ZDATA.leagues.map(leaguePreview).join("");
 }
 
 renderZScorePreview();

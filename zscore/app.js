@@ -1,16 +1,31 @@
 /* =====================================================================
-   Z-score — prikaz stranice
+   Z-score — prikaz stranice (obje lige + usporedba)
 
    Podaci: data.js (window.ZDATA), izračun: zscore-calc.js (ZScore).
-   Adresa: #w/4 (tjedan 4), #w/4/Ime momčadi (detalj), #s (sezona),
-   #o (objašnjenje).
+   Adresa: #SJB/w/4            — liga SJB, tjedan 4
+           #SJB/w/4/Ime momčadi — detalj momčadi
+           #PBL/s              — Plavo-bijela liga, sezona
+           #CMP/w/4            — usporedba liga, tjedan 4
+           #SJB/o              — objašnjenje
    ===================================================================== */
 
 "use strict";
 
-const { CATEGORIES, computeWeek, computeSeason, formatZ, formatPct, esc } = ZScore;
-const WEEKS = window.ZDATA.weeks;
-const LATEST_WEEK = WEEKS[WEEKS.length - 1].week;
+const { CATEGORIES, computeWeek, computeSeason, mergeWeeks, compareLeagues, formatZ, formatPct, esc } =
+  ZScore;
+
+const LEAGUES = window.ZDATA.leagues;
+
+/* "Lige" u izborniku: svaka domaća liga + usporedba. */
+const MODES = [
+  ...LEAGUES.map((l) => ({
+    id: l.id,
+    name: l.name,
+    short: l.name.split(" ")[0], // na mobitelu: "Sjeverno-južni", "Plavo-bijela"
+    color: l.id === "SJB" ? "#3b82f6" : "#22b8cf",
+  })),
+  { id: "CMP", name: "Usporedba liga", short: "Usporedba", color: "#a855f7" },
+];
 
 const VIEWS = [
   {
@@ -35,12 +50,64 @@ const VIEWS = [
 ];
 
 /* =====================================================================
+   Podaci po ligama
+   ===================================================================== */
+
+/** Kojoj ligi pripada momčad (prema podacima). */
+const LEAGUE_OF_TEAM = {};
+for (const league of LEAGUES) {
+  for (const week of league.weeks) {
+    for (const pair of week.matchups) {
+      for (const row of pair) LEAGUE_OF_TEAM[row[0]] = league.id;
+    }
+  }
+}
+
+function leagueOf(team) {
+  return LEAGUE_OF_TEAM[team];
+}
+
+function leagueById(id) {
+  return LEAGUES.find((l) => l.id === id);
+}
+
+function leagueName(id) {
+  const league = leagueById(id);
+  return league ? league.name : id;
+}
+
+/** Tjedni koji postoje u SVIM ligama — samo njih možemo uspoređivati. */
+function commonWeeks() {
+  const numbers = LEAGUES.map((l) => new Set(l.weeks.map((w) => w.week)));
+  const shared = [...numbers[0]].filter((n) => numbers.every((set) => set.has(n)));
+  return shared
+    .sort((a, b) => a - b)
+    .map((n) => mergeWeeks(LEAGUES.map((l) => l.weeks.find((w) => w.week === n))));
+}
+
+/** Tjedni za trenutni odabir (liga ili usporedba). */
+function modeWeeks() {
+  if (state.mode === "CMP") return commonWeeks();
+  return leagueById(state.mode).weeks;
+}
+
+function latestWeekNumber() {
+  const weeks = modeWeeks();
+  return weeks.length ? weeks[weeks.length - 1].week : null;
+}
+
+function currentWeek() {
+  return modeWeeks().find((w) => w.week === state.week);
+}
+
+/* =====================================================================
    Stanje stranice
    ===================================================================== */
 
 const state = {
+  mode: "SJB", // SJB, PBL ili CMP (usporedba)
   view: "w",
-  week: LATEST_WEEK,
+  week: null,
   team: null, // ime momčadi za detalj (null = tablica)
   pctMode: "impact", // "impact" ili "simple"
   show: "z", // toplinska karta: "z" = z-vrijednosti, "stat" = statistika
@@ -48,16 +115,19 @@ const state = {
 };
 
 function readHash() {
-  const [view, week, team] = location.hash.slice(1).split("/");
+  const [mode, view, week, team] = location.hash.slice(1).split("/");
+  state.mode = MODES.some((m) => m.id === mode) ? mode : "SJB";
   state.view = VIEWS.some((v) => v.id === view) ? view : "w";
-  state.week = WEEKS.some((w) => w.week === +week) ? +week : LATEST_WEEK;
+  state.week = modeWeeks().some((w) => w.week === +week) ? +week : latestWeekNumber();
   state.team = team ? decodeURIComponent(team) : null;
 }
 
 function navigate(changes) {
   Object.assign(state, changes);
-  const parts = [state.view];
-  if (state.view === "w") {
+  if (!modeWeeks().some((w) => w.week === state.week)) state.week = latestWeekNumber();
+
+  const parts = [state.mode, state.view];
+  if (state.view === "w" && state.week != null) {
     parts.push(state.week);
     if (state.team) parts.push(encodeURIComponent(state.team));
   }
@@ -123,8 +193,19 @@ const COLOR_LEGEND = `
     <span>bolje od prosjeka</span>
   </span>`;
 
+/** Mala obojena oznaka lige (SJB / PBL). */
+function leagueTag(id) {
+  const mode = MODES.find((m) => m.id === id) || {};
+  return `<span class="league-tag" style="background: ${mode.color}">${esc(id)}</span>`;
+}
+
 function categoryText(cat, value) {
   return cat.made ? formatPct(value) : value;
+}
+
+/** Prosjek kategorije za prikaz: postotak ili broj s jednom decimalom. */
+function averageText(cat, value) {
+  return cat.made ? formatPct(value) : value.toFixed(1).replace(".", ",");
 }
 
 function weekLabel(week) {
@@ -135,8 +216,8 @@ function weekLabel(week) {
   return `${week.week}. tjedan · ${fmt(week.start)}–${fmt(week.end)}`;
 }
 
-function currentWeek() {
-  return WEEKS.find((w) => w.week === state.week);
+function pctText(pct) {
+  return formatPct(pct);
 }
 
 /* ---------- Sortiranje tablica ---------- */
@@ -198,6 +279,19 @@ function sortHeader(key, label, extraClass = "") {
    ===================================================================== */
 
 function renderChrome() {
+  const mode = MODES.find((m) => m.id === state.mode);
+  document.documentElement.style.setProperty("--c", mode.color);
+
+  document.getElementById("modes").innerHTML = MODES.map((m) => {
+    const on = m.id === state.mode ? "on" : "";
+    return `
+      <button class="comp ${on}" style="--c: ${m.color}" data-mode="${m.id}">
+        <span class="dot" style="background: ${m.color}"></span>
+        <span class="long">${esc(m.name)}</span>
+        <span class="short">${esc(m.short)}</span>
+      </button>`;
+  }).join("");
+
   document.getElementById("topviews").innerHTML = VIEWS.map((v) => {
     const on = v.id === state.view ? "on" : "";
     return `<button class="view ${on}" data-view="${v.id}">${v.name}</button>`;
@@ -210,14 +304,14 @@ function renderChrome() {
       </button>`,
   ).join("");
 
-  document.getElementById("upd").innerHTML =
-    `Ažurirano ${esc(window.ZDATA.updated)}<br>tjedana: ${WEEKS.length}`;
+  const counts = LEAGUES.map((l) => `${l.id}: ${l.weeks.length}`).join(" · ");
+  document.getElementById("upd").innerHTML = `Ažurirano ${esc(window.ZDATA.updated)}<br>tjedana ${counts}`;
 }
 
 function controlsBar({ weekSelect = true, showToggle = false } = {}) {
-  const weekOptions = WEEKS.map(
-    (w) => `<option value="${w.week}" ${selectedIf(w.week === state.week)}>${weekLabel(w)}</option>`,
-  ).join("");
+  const weekOptions = modeWeeks()
+    .map((w) => `<option value="${w.week}" ${selectedIf(w.week === state.week)}>${weekLabel(w)}</option>`)
+    .join("");
 
   const pctOptions = `
     <option value="impact" ${selectedIf(state.pctMode === "impact")}>Postoci: ponderirano</option>
@@ -235,12 +329,37 @@ function controlsBar({ weekSelect = true, showToggle = false } = {}) {
     </div>`;
 }
 
+/** Poruka kad za odabir još nema podataka. */
+function emptyState() {
+  if (state.mode === "CMP") {
+    const missing = LEAGUES.filter((l) => !l.weeks.length).map((l) => l.name);
+    const reason = missing.length
+      ? `Još nema podataka za: <b>${missing.map(esc).join(", ")}</b>.`
+      : "Lige još nemaju nijedan zajednički tjedan.";
+    return `
+      <div class="box empty-box">
+        <h3>Usporedba liga</h3>
+        <p>${reason}</p>
+        <p class="muted">Usporedba se računa za tjedne za koje postoje podaci obje lige.</p>
+      </div>`;
+  }
+  return `
+    <div class="box empty-box">
+      <h3>${esc(leagueName(state.mode))}</h3>
+      <p>Još nema podataka za ovu ligu.</p>
+      <p class="muted">Podaci se zasad prepisuju iz Yahoo matchupa (screenshotovi), a kasnije će stizati automatski.</p>
+    </div>`;
+}
+
 /* =====================================================================
-   Prikaz: Tjedan
+   Prikaz: Tjedan (jedna liga)
    ===================================================================== */
 
 function viewWeek() {
   const week = currentWeek();
+  if (!week) return emptyState();
+  if (state.mode === "CMP") return viewCompareWeek(week);
+
   const data = computeWeek(week, state.pctMode);
 
   if (state.team) {
@@ -265,7 +384,7 @@ function rankingTable(data) {
           <td class="l sticky1"><b>${esc(t.team)}</b></td>
           ${heatCell(t.zTotal, formatZ(t.zTotal), 1.2, "total")}
           <td class="l">${resultBadge(t.result)} <span class="muted">vs ${esc(t.opponent)}</span></td>
-          <td>${recordText(t.allPlay)} <span class="muted">(${formatPct(t.allPlay.pct)})</span></td>
+          <td>${recordText(t.allPlay)} <span class="muted">(${pctText(t.allPlay.pct)})</span></td>
           <td>${formatSigned(t.luck)}</td>
         </tr>`,
     )
@@ -273,7 +392,7 @@ function rankingTable(data) {
 
   return `
     <div class="box stand section">
-      <h3>Z-score poredak <small>${esc(weekLabel(data.week))}</small></h3>
+      <h3>Z-score poredak <small>${esc(leagueName(state.mode))} · ${esc(weekLabel(data.week))}</small></h3>
       <div class="scroll">
         <table>
           <thead>
@@ -344,18 +463,19 @@ function heatmapTable(data) {
 }
 
 /** Vodoravni stupci: Z-score svake momčadi oko nule. */
-function barChart(data) {
+function barChart(data, { withLeague = false } = {}) {
   const maxAbs = Math.max(...data.teams.map((t) => Math.abs(t.zTotal)), 0.5);
 
   const rows = data.teams
-    .map(
-      (t) => `
+    .map((t) => {
+      const tag = withLeague ? leagueTag(leagueOf(t.team)) + " " : "";
+      return `
         <div class="bar-row clickable" data-team="${esc(t.team)}">
-          <span class="name">${t.rank}. ${esc(t.team)}</span>
+          <span class="name">${t.rank}. ${tag}${esc(t.team)}</span>
           <span class="bar-track">${barFill(t.zTotal, maxAbs, 1.2)}</span>
           <span class="val">${formatZ(t.zTotal)}</span>
-        </div>`,
-    )
+        </div>`;
+    })
     .join("");
 
   return `
@@ -459,12 +579,16 @@ function viewTeam(data, team) {
 }
 
 /* =====================================================================
-   Prikaz: Sezona
+   Prikaz: Sezona (jedna liga)
    ===================================================================== */
 
 function viewSeason() {
-  const season = computeSeason(WEEKS, state.pctMode);
-  const weekNumbers = WEEKS.map((w) => w.week);
+  const weeks = modeWeeks();
+  if (!weeks.length) return emptyState();
+  if (state.mode === "CMP") return viewCompareSeason(weeks);
+
+  const season = computeSeason(weeks, state.pctMode);
+  const weekNumbers = weeks.map((w) => w.week);
 
   const rows = season
     .map((s) => {
@@ -482,19 +606,19 @@ function viewSeason() {
           ${heatCell(s.zAvg, formatZ(s.zAvg), 1.2, "total")}
           ${weekCells}
           <td>${recordText(s.record)}</td>
-          <td>${recordText(s.allPlay)} <span class="muted">(${formatPct(s.allPlay.pct)})</span></td>
+          <td>${recordText(s.allPlay)} <span class="muted">(${pctText(s.allPlay.pct)})</span></td>
           <td>${formatSigned(s.luck)}</td>
         </tr>`;
     })
     .join("");
 
   const weekHeaders = weekNumbers.map((n) => `<th>T${n}</th>`).join("");
-  const weekCount = `${WEEKS.length} ${WEEKS.length === 1 ? "tjedan" : "tjedana"}`;
+  const weekCount = `${weeks.length} ${weeks.length === 1 ? "tjedan" : "tjedana"}`;
 
   return `
     ${controlsBar({ weekSelect: false })}
     <div class="box stand section">
-      <h3>Sezona — prosječni Z-score <small>${weekCount}</small></h3>
+      <h3>Sezona — prosječni Z-score <small>${esc(leagueName(state.mode))} · ${weekCount}</small></h3>
       <div class="scroll">
         <table>
           <thead>
@@ -511,6 +635,261 @@ function viewSeason() {
         Prosjek = prosječni tjedni Z-score. Stvarno = omjer pobjeda u matchupima (P-I-N).
         All-play = zbroj svih tjedana. Sreća = zbroj tjednih (stvarno − očekivano);
         pozitivno znači više pobjeda nego što je igra zaslužila.
+      </div>
+    </div>`;
+}
+
+/* =====================================================================
+   Prikaz: Usporedba liga — tjedan
+   ===================================================================== */
+
+function viewCompareWeek(week) {
+  const pooled = computeWeek(week, state.pctMode);
+  const leagues = compareLeagues(pooled, leagueOf);
+  const ids = LEAGUES.map((l) => l.id);
+
+  // tko je bolji ovaj tjedan: prema međuligaškom all-playu
+  const [a, b] = ids.map((id) => leagues[id]);
+  const stronger = a.cross.pct === b.cross.pct ? null : a.cross.pct > b.cross.pct ? a : b;
+  const verdict = stronger
+    ? `Ovaj tjedan jača je <b>${esc(leagueName(stronger.id))}</b>: u međusobnim all-play
+       dvobojima njene momčadi osvajaju ${pctText(stronger.cross.pct)} mečeva protiv druge lige.`
+    : "Ovaj tjedan lige su potpuno izjednačene.";
+
+  return `
+    ${controlsBar()}
+    <div class="recap compare-verdict">
+      <div class="recap-label">Usporedba liga · ${esc(weekLabel(week))}</div>
+      <p>${verdict}</p>
+    </div>
+    ${compareCards(leagues, ids)}
+    ${compareCategories(leagues, ids)}
+    ${pooledRanking(pooled, leagues)}
+    ${barChart(pooled, { withLeague: true })}`;
+}
+
+/** Kartice sa sažetkom po ligi. */
+function compareCards(leagues, ids) {
+  const card = (id) => {
+    const L = leagues[id];
+    return `
+      <div class="box league-card">
+        <h3>${leagueTag(id)} ${esc(leagueName(id))}</h3>
+        <div class="kpis">
+          <div class="kpi">
+            <div class="lab">Prosječni Z (zajednički)</div>
+            <div class="num">${formatZ(L.avgZ)}</div>
+            <div class="sub">0 = prosjek svih ${L.count * ids.length} momčadi</div>
+          </div>
+          <div class="kpi">
+            <div class="lab">Protiv druge lige</div>
+            <div class="num">${recordText(L.cross)}</div>
+            <div class="sub">all-play, ${pctText(L.cross.pct)}</div>
+          </div>
+          <div class="kpi">
+            <div class="lab">Momčadi u top 10</div>
+            <div class="num">${L.top10}</div>
+            <div class="sub">od ${L.count}</div>
+          </div>
+          <div class="kpi">
+            <div class="lab">Najbolja momčad</div>
+            <div class="num small-num">${esc(L.best.team)}</div>
+            <div class="sub">${L.best.rank}. ukupno · ${formatZ(L.best.zTotal)}</div>
+          </div>
+        </div>
+      </div>`;
+  };
+  return `<div class="cols two section">${ids.map(card).join("")}</div>`;
+}
+
+/** Tablica kategorija: prosjek svake lige i koja je bolja. */
+function compareCategories(leagues, ids) {
+  const [a, b] = ids;
+
+  const rows = CATEGORIES.map((cat) => {
+    const za = leagues[a].catZ[cat.key];
+    const zb = leagues[b].catZ[cat.key];
+    const better = Math.abs(za - zb) < 0.005 ? "—" : leagueTag(za > zb ? a : b);
+    return `
+      <tr>
+        <td class="l"><b>${cat.key}</b></td>
+        <td>${averageText(cat, leagues[a].catAvg[cat.key])}</td>
+        <td>${averageText(cat, leagues[b].catAvg[cat.key])}</td>
+        ${heatCell(za, formatZ(za, 2), 1)}
+        ${heatCell(zb, formatZ(zb, 2), 1)}
+        <td class="c">${better}</td>
+      </tr>`;
+  }).join("");
+
+  const winsA = CATEGORIES.filter((c) => leagues[a].catZ[c.key] > leagues[b].catZ[c.key]).length;
+  const winsB = CATEGORIES.length - winsA;
+
+  return `
+    <div class="box section">
+      <h3>Po kategorijama <small>prosjek momčadi u ligi</small></h3>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th class="l">Kat.</th>
+              <th>${leagueTag(a)} prosjek</th><th>${leagueTag(b)} prosjek</th>
+              <th>${leagueTag(a)} z</th><th>${leagueTag(b)} z</th>
+              <th class="c">Bolja</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="note">
+        Kategorije: ${leagueTag(a)} ${winsA} : ${winsB} ${leagueTag(b)}.
+        Prosjek = prosječna momčad lige (postoci iz ukupnih pokušaja). z = prosjek z-vrijednosti momčadi lige
+        kad se sve momčadi računaju zajedno.
+      </div>
+    </div>`;
+}
+
+/** Zajednički poredak svih momčadi obje lige. */
+function pooledRanking(pooled, leagues) {
+  // mjesto unutar vlastite lige (po zajedničkom Z-scoreu)
+  const ownRank = {};
+  for (const L of Object.values(leagues)) {
+    [...L.teams].sort((x, y) => y.zTotal - x.zTotal).forEach((t, i) => (ownRank[t.team] = i + 1));
+  }
+
+  const rows = sortTeams(pooled.teams)
+    .map(
+      (t) => `
+        <tr class="clickable" data-team="${esc(t.team)}">
+          <td class="rank">${t.rank}</td>
+          <td class="l sticky1"><b>${esc(t.team)}</b></td>
+          <td class="c">${leagueTag(leagueOf(t.team))}</td>
+          ${heatCell(t.zTotal, formatZ(t.zTotal), 1.2, "total")}
+          <td>${ownRank[t.team]}.</td>
+          <td>${recordText(t.cross)}</td>
+          <td>${recordText(t.allPlay)} <span class="muted">(${pctText(t.allPlay.pct)})</span></td>
+        </tr>`,
+    )
+    .join("");
+
+  return `
+    <div class="box stand section">
+      <h3>Zajednički poredak <small>sve momčadi obje lige</small></h3>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              ${sortHeader("rank", "#")}
+              ${sortHeader("team", "Momčad", "l sticky1")}
+              <th class="c">Liga</th>
+              ${sortHeader("zTotal", "Z-score")}
+              <th>U ligi</th>
+              <th>vs druga liga</th>
+              ${sortHeader("allPlay", "All-play (svi)")}
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="note">
+        Z-score je ovdje izračunat nad svim momčadima zajedno, pa se može izravno uspoređivati između liga.
+        "vs druga liga" = all-play samo protiv momčadi iz druge lige. Klik na momčad otvara njen detalj u njenoj ligi.
+      </div>
+    </div>`;
+}
+
+/* =====================================================================
+   Prikaz: Usporedba liga — sezona
+   ===================================================================== */
+
+function viewCompareSeason(weeks) {
+  const ids = LEAGUES.map((l) => l.id);
+
+  // po tjednima: prosječni Z i međuligaški all-play svake lige
+  const perWeek = weeks.map((week) => {
+    const leagues = compareLeagues(computeWeek(week, state.pctMode), leagueOf);
+    return { week, leagues };
+  });
+
+  const totals = {};
+  for (const id of ids) {
+    const cross = { wins: 0, losses: 0, ties: 0 };
+    for (const w of perWeek) {
+      cross.wins += w.leagues[id].cross.wins;
+      cross.losses += w.leagues[id].cross.losses;
+      cross.ties += w.leagues[id].cross.ties;
+    }
+    const games = cross.wins + cross.losses + cross.ties;
+    cross.pct = games ? (cross.wins + cross.ties / 2) / games : 0;
+    const avgZ = perWeek.reduce((s, w) => s + w.leagues[id].avgZ, 0) / perWeek.length;
+    const weekWins = perWeek.filter((w) => w.leagues[id].cross.pct > 0.5).length;
+    totals[id] = { cross, avgZ, weekWins };
+  }
+
+  const weekRows = perWeek
+    .map((w) => {
+      const cells = ids
+        .map((id) => {
+          const L = w.leagues[id];
+          return `${heatCell(L.avgZ, formatZ(L.avgZ), 0.5)}<td>${recordText(L.cross)}</td>`;
+        })
+        .join("");
+      return `<tr><td class="l">${esc(weekLabel(w.week))}</td>${cells}</tr>`;
+    })
+    .join("");
+
+  const totalCells = ids
+    .map((id) => `${heatCell(totals[id].avgZ, formatZ(totals[id].avgZ), 0.5)}<td>${recordText(totals[id].cross)}</td>`)
+    .join("");
+
+  const headers = ids.map((id) => `<th>${leagueTag(id)} Z</th><th>${leagueTag(id)} vs druga</th>`).join("");
+
+  // zajednički sezonski poredak momčadi
+  const season = computeSeason(weeks, state.pctMode);
+  const teamRows = season
+    .map(
+      (s) => `
+        <tr>
+          <td class="rank">${s.rank}</td>
+          <td class="l sticky1"><b>${esc(s.team)}</b></td>
+          <td class="c">${leagueTag(leagueOf(s.team))}</td>
+          ${heatCell(s.zAvg, formatZ(s.zAvg), 1.2, "total")}
+          <td>${recordText(s.allPlay)} <span class="muted">(${pctText(s.allPlay.pct)})</span></td>
+        </tr>`,
+    )
+    .join("");
+
+  const [a, b] = ids;
+  const leader = totals[a].cross.pct === totals[b].cross.pct ? null : totals[a].cross.pct > totals[b].cross.pct ? a : b;
+  const verdict = leader
+    ? `Kroz sezonu jača je <b>${esc(leagueName(leader))}</b>: ${pctText(totals[leader].cross.pct)} pobjeda
+       u međuligaškim all-play dvobojima, bolja u ${totals[leader].weekWins} od ${weeks.length} tjedana.`
+    : "Kroz sezonu lige su izjednačene.";
+
+  return `
+    ${controlsBar({ weekSelect: false })}
+    <div class="recap compare-verdict">
+      <div class="recap-label">Usporedba liga · sezona</div>
+      <p>${verdict}</p>
+    </div>
+    <div class="box section">
+      <h3>Po tjednima</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th class="l">Tjedan</th>${headers}</tr></thead>
+          <tbody>${weekRows}<tr class="tot"><td class="l">Ukupno</td>${totalCells}</tr></tbody>
+        </table>
+      </div>
+      <div class="note">Z = prosječni zajednički Z-score momčadi lige. "vs druga" = all-play protiv momčadi druge lige.</div>
+    </div>
+    <div class="box stand section">
+      <h3>Zajednički sezonski poredak</h3>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr><th>#</th><th class="l sticky1">Momčad</th><th class="c">Liga</th><th>Prosjek Z</th><th>All-play (svi)</th></tr>
+          </thead>
+          <tbody>${teamRows}</tbody>
+        </table>
       </div>
     </div>`;
 }
@@ -566,6 +945,20 @@ function viewExplain() {
           momčad koja je izgubila iako bi pobijedila skoro sve ima veliku negativnu.
         </p>
 
+        <h4>6. Usporedba liga</h4>
+        <p>
+          Z-score jedne lige pokazuje odnos prema prosjeku <i>te</i> lige, pa se ne može izravno uspoređivati
+          s drugom ligom. Zato se za usporedbu sve <b>32 momčadi računaju zajedno</b>: prosjek i standardna
+          devijacija su od obje lige, pa zajednički Z-score pokazuje tko je stvarno jači.
+        </p>
+        <ul>
+          <li><b>Prosječni Z lige</b> — prosjek zajedničkih Z-scoreova njenih momčadi (iznad 0 = jača liga).</li>
+          <li><b>Protiv druge lige</b> — svaka momčad "odigra" all-play matchup sa svih 16 momčadi druge lige;
+            zbroj pobjeda kaže koja je liga taj tjedan bila jača.</li>
+          <li><b>Po kategorijama</b> — u kojim je kategorijama koja liga jača (npr. jedna skače, druga šutira).</li>
+        </ul>
+        <p>Usporedba se računa samo za tjedne za koje postoje podaci obje lige.</p>
+
         <h4>Boje</h4>
         ${COLOR_LEGEND}
 
@@ -590,11 +983,13 @@ function render() {
 }
 
 document.addEventListener("click", (event) => {
-  const el = event.target.closest("[data-view], [data-team], [data-sort], [data-back]");
+  const el = event.target.closest("[data-mode], [data-view], [data-team], [data-sort], [data-back]");
   if (!el) return;
   const data = el.dataset;
 
-  if (data.view) {
+  if (data.mode) {
+    navigate({ mode: data.mode, team: null, week: null, sort: { key: "rank", asc: true } });
+  } else if (data.view) {
     navigate({ view: data.view, team: null });
   } else if (data.sort) {
     toggleSort(data.sort);
@@ -602,7 +997,9 @@ document.addEventListener("click", (event) => {
   } else if (data.back != null) {
     navigate({ team: null });
   } else if (data.team) {
-    navigate({ view: "w", team: data.team });
+    // u usporedbi klik vodi na detalj momčadi u njenoj ligi
+    const mode = state.mode === "CMP" ? leagueOf(data.team) : state.mode;
+    navigate({ mode, view: "w", team: data.team });
     window.scrollTo(0, 0);
   }
 });

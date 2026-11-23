@@ -1,0 +1,22 @@
+{
+  "SJB": {
+    "name": "CROEFA Sjeverno-južni bataljun",
+    "short": "Sjeverno-južni bataljun",
+    "teams": [
+      "Ceraff Ambasador - Pruđe", "Epetij Spartium", "Gajnice Hoops", "Gipsovi Ratnici DBK",
+      "Knežija Storks", "Kutina Bricklayers", "Manute Bol", "Naplatne Lučko",
+      "Promili Strmec", "Stenjevčani", "Strmec Bullies", "Strmec Phantoms",
+      "Šugavi Dugavci", "Timamu po Travnom", "Tragurium Titans", "Zov Čitluka Zapruđe"
+    ]
+  },
+  "PBL": {
+    "name": "Croefa Plavo-bijela liga",
+    "short": "Plavo-bijela liga",
+    "teams": [
+      "Kajzerica Jazz", "OGulin Eagles", "Pešča Roms", "Prexico city 80",
+      "Rudeš 89ers", "Rudeš Chihuahua", "Shpaolin MGones", "Splitski Đaneri",
+      "Sive Vrane Šestine", "STC gentlemen", "StenjevečkiFakin", "Stenjevacki Kengur",
+      "Stenjevečki Žganci", "Sopot hakl nekoć", "Špansko Longfellows", "Trnjanski Kmetovi"
+    ]
+  }
+}

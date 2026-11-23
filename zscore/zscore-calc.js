@@ -220,5 +220,85 @@ const ZScore = (() => {
     return teams;
   }
 
-  return { CATEGORIES, computeWeek, computeSeason, formatZ, formatPct, esc, outcome };
+  /* ---------- usporedba liga ---------- */
+
+  /** Spoji isti tjedan iz više liga u jedan "zajednički" tjedan (32 momčadi). */
+  function mergeWeeks(weeks) {
+    const first = weeks[0];
+    return {
+      week: first.week,
+      start: first.start,
+      end: first.end,
+      matchups: weeks.flatMap((w) => w.matchups),
+    };
+  }
+
+  /**
+   * Usporedba liga u jednom zajedničkom tjednu.
+   * pooled = rezultat computeWeek nad spojenim tjednom (z-vrijednosti svih momčadi zajedno),
+   * leagueOf = funkcija: ime momčadi -> id lige.
+   * Za svaku ligu vraća prosječni Z, broj momčadi u top 10, najbolju momčad,
+   * međuligaški all-play i prosjeke po kategorijama.
+   */
+  function compareLeagues(pooled, leagueOf) {
+    const result = {};
+
+    for (const t of pooled.teams) {
+      const id = leagueOf(t.team);
+      const L = (result[id] = result[id] || {
+        id,
+        teams: [],
+        cross: { wins: 0, losses: 0, ties: 0 },
+        made: {},
+        att: {},
+      });
+      L.teams.push(t);
+
+      // međuligaški all-play: samo protiv momčadi iz druge lige
+      t.cross = { wins: 0, losses: 0, ties: 0 };
+      for (const v of t.allPlay.vs) {
+        if (leagueOf(v.team) === id) continue;
+        const key = v.outcome === 1 ? "wins" : v.outcome === 0 ? "losses" : "ties";
+        t.cross[key]++;
+        L.cross[key]++;
+      }
+    }
+
+    for (const L of Object.values(result)) {
+      const n = L.teams.length;
+      const crossGames = L.cross.wins + L.cross.losses + L.cross.ties;
+      L.avgZ = mean(L.teams.map((t) => t.zTotal));
+      L.top10 = L.teams.filter((t) => t.rank <= 10).length;
+      L.best = L.teams.reduce((a, b) => (a.zTotal >= b.zTotal ? a : b));
+      L.cross.pct = crossGames ? (L.cross.wins + L.cross.ties / 2) / crossGames : 0;
+
+      // prosjek po kategorijama: postoci iz zbroja pokušaja, ostalo prosjek po momčadi
+      L.catAvg = {};
+      L.catZ = {};
+      for (const cat of CATEGORIES) {
+        if (cat.made) {
+          const made = L.teams.reduce((s, t) => s + t.row[cat.made], 0);
+          const att = L.teams.reduce((s, t) => s + t.row[cat.att], 0);
+          L.catAvg[cat.key] = att ? made / att : 0;
+        } else {
+          L.catAvg[cat.key] = mean(L.teams.map((t) => t.row[cat.col]));
+        }
+        L.catZ[cat.key] = mean(L.teams.map((t) => t.z[cat.key]));
+      }
+      L.count = n;
+    }
+    return result;
+  }
+
+  return {
+    CATEGORIES,
+    computeWeek,
+    computeSeason,
+    mergeWeeks,
+    compareLeagues,
+    formatZ,
+    formatPct,
+    esc,
+    outcome,
+  };
 })();

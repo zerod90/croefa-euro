@@ -54,8 +54,18 @@ Portal ima početnu stranicu i dva dijela:
 - `fetch.py` — dohvat podataka s Yahooa i izgradnja `euro/data.js`.
 
 ### Dodavanje novog tjedna u Z-score
-U `zscore/data.js` dodaj novi blok u `weeks` (isti oblik kao 4. tjedan):
+`zscore/data.js` ima obje lige (`SJB` i `PBL`), svaka sa svojim popisom `weeks`.
+U `weeks` odgovarajuće lige dodaj novi blok (isti oblik kao 4. tjedan SJB-a):
 po jedan red za svaku momčad, brojevi redom FGM, FGA, FTM, FTA, 3PTM, PTS, REB, AST, ST, BLK, TO.
+Usporedba liga se pojavi sama za svaki tjedan koji postoji u obje lige.
+
+### Euro recap
+`euro/recap.js` slaže automatski tekst uz svaki matchup (rezultat, kategorije, igrači, tablica,
+koeficijent, dvoboj domaćih liga). Koja momčad je iz koje domaće lige piše u `lige.json`.
+
+### Nakon izmjena koda
+U `index.html` datotekama skripte imaju oznaku `?v=20261123`. Kod veće izmjene promijeni je
+(npr. na današnji datum), da preglednici ne koriste staru verziju iz memorije.
 - `logo.svg`, `img/court.svg` — logo i pozadinske linije terena.
 - `raspored/` — Excel rasporedi Euro natjecanja.
 - Python kod se formatira s `python -m black .` (postavke u `pyproject.toml`).

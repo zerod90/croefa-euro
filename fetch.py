@@ -403,6 +403,18 @@ def cmd_update(refetch_days=3):
 
 
 # ----------------------------------------------------------------------------- izgradnja data.js
+# domaće lige (koja momčad pripada kojoj ligi), iz lige.json
+DOMESTIC = load_json(os.path.join(HERE, "lige.json"), {})
+
+
+def domestic_league(team_name):
+    """Vraća "SJB" ili "PBL" za ime momčadi (neosjetljivo na velika slova i kvačice)."""
+    for league_id, league in DOMESTIC.items():
+        if norm(team_name) in {norm(t) for t in league["teams"]}:
+            return league_id
+    return ""
+
+
 def build(comps, mapping, yteams, demo):
     days, lineups, players = {}, {}, {}
     last = None
@@ -422,8 +434,10 @@ def build(comps, mapping, yteams, demo):
     teams = {}
     for name, tk in mapping.items():
         y = yteams.get(tk, {})
+        league_id = domestic_league(name)
         teams[name] = {
-            "league": y.get("league", ""),
+            "league": DOMESTIC[league_id]["short"] if league_id else y.get("league", ""),
+            "leagueId": league_id,
             "logo": y.get("logo", ""),
             "manager": y.get("manager", ""),
         }

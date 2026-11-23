@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Z-score SJB · CROEFA</title>
+    <title>Z-score · CROEFA</title>
     <link rel="icon" href="../logo.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="../style.css">
-    <link rel="stylesheet" href="zscore.css">
+    <link rel="stylesheet" href="../style.css?v=20261123">
+    <link rel="stylesheet" href="zscore.css?v=20261123">
   </head>
 
   <body>
@@ -20,7 +20,7 @@
           </a>
           <h1>
             <span class="w1">CROEFA</span>
-            <span class="w2">Z-score · Sjeverno-južni bataljun</span>
+            <span class="w2">Z-score</span>
           </h1>
           <div class="upd" id="upd"></div>
         </div>
@@ -28,8 +28,11 @@
         <nav class="portal">
           <a href="../">Početna</a>
           <a href="../euro/">Euro kupovi</a>
-          <a href="../zscore/" class="on">Z-score SJB</a>
+          <a href="../zscore/" class="on">Z-score</a>
         </nav>
+
+        <!-- odabir: Sjeverno-južni bataljun / Plavo-bijela liga / Usporedba liga -->
+        <div class="comps" id="modes"></div>
 
         <!-- izbornik prikaza (desktop) -->
         <nav class="views topviews" id="topviews"></nav>
@@ -41,8 +44,8 @@
     <!-- donja navigacija (mobitel) -->
     <nav class="bottomnav" id="bottomnav"></nav>
 
-    <script src="data.js"></script>
-    <script src="zscore-calc.js"></script>
-    <script src="app.js"></script>
+    <script src="data.js?v=20261123"></script>
+    <script src="zscore-calc.js?v=20261123"></script>
+    <script src="app.js?v=20261123"></script>
   </body>
 </html>
